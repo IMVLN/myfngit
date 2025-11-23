@@ -6,13 +6,12 @@ const { DateTime } = require('luxon');
 
 const app = express();
 
-// ←←← THESE TWO LINES ARE THE FIX
 app.set('trust proxy', 1);
 app.use(session({
   secret: 'myfn2025',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: true, sameSite: 'none' }   // ← allows cookie from myfn.pro to backend
+  cookie: { secure: true, sameSite: 'none' }
 }));
 
 const EPIC_CLIENT_ID = 'xyza7891SllfWwak4iZVChMe5KBubfvf';
@@ -32,9 +31,15 @@ app.get('/auth/epic/callback', async (req, res) => {
     const tokenRes = await axios.post('https://api.epicgames.dev/epic/oauth/v1/token',
       new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: EPIC_REDIRECT }),
       { auth: { username: EPIC_CLIENT_ID, password: EPIC_CLIENT_SECRET } });
+    
     req.session.epic = tokenRes.data;
-    res.send('<h1>Logged in! Close tab and return to app.</h1>');
-  } catch (e) { res.send('Error: ' + e.message); }
+    
+    // THIS LINE SENDS USER STRAIGHT TO THEIR PROFILE AFTER LOGIN
+    res.redirect('https://myfn.pro/profile');
+    
+  } catch (e) { 
+    res.send('Error: ' + e.message); 
+  }
 });
 
 app.get('/api/session', (req, res) => {
