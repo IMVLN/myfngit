@@ -8,7 +8,7 @@ const app = express();
 
 const EPIC_CLIENT_ID = 'xyza7891SllfWwak4iZVChMe5KBubfvf';
 const EPIC_CLIENT_SECRET = 'rv29Tq7UzyI2vP4gofBoevkIDkPxj6D10bLdfL79hOM';
-const EPIC_REDIRECT = 'http://localhost:3000/auth/epic/callback';
+const EPIC_REDIRECT = 'https://myfn.pro/auth/epic/callback';
 
 let db;
 try { admin.initializeApp(); db = admin.firestore(); } catch(e) {}
@@ -28,6 +28,19 @@ app.get('/auth/epic/callback', async (req, res) => {
     req.session.epic = tokenRes.data;
     res.send('<h1>Logged in! Close tab and return to app.</h1>');
   } catch (e) { res.send('Error: ' + e.message); }
+});
+
+// NEW: This is what fixes "Loading profile…"
+app.get('/api/session', (req, res) => {
+  if (req.session.epic) {
+    res.json({
+      loggedIn: true,
+      displayName: req.session.epic.displayName || 'Player',
+      accountId: req.session.epic.account_id
+    });
+  } else {
+    res.json({ loggedIn: false });
+  }
 });
 
 app.get('/api/check', async (req, res) => {
