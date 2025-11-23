@@ -6,14 +6,21 @@ const { DateTime } = require('luxon');
 
 const app = express();
 
+// ←←← THESE TWO LINES ARE THE FIX
+app.set('trust proxy', 1);
+app.use(session({
+  secret: 'myfn2025',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: true, sameSite: 'none' }   // ← allows cookie from myfn.pro to backend
+}));
+
 const EPIC_CLIENT_ID = 'xyza7891SllfWwak4iZVChMe5KBubfvf';
 const EPIC_CLIENT_SECRET = 'rv29Tq7UzyI2vP4gofBoevkIDkPxj6D10bLdfL79hOM';
 const EPIC_REDIRECT = 'https://myfn.pro/auth/epic/callback';
 
 let db;
 try { admin.initializeApp(); db = admin.firestore(); } catch(e) {}
-
-app.use(session({ secret: 'myfn2025', resave: false, saveUninitialized: false }));
 
 app.get('/login', (req, res) => {
   res.redirect(`https://www.epicgames.com/id/authorize?client_id=${EPIC_CLIENT_ID}&redirect_uri=${encodeURIComponent(EPIC_REDIRECT)}&response_type=code&scope=basic_profile account openid`);
@@ -30,7 +37,6 @@ app.get('/auth/epic/callback', async (req, res) => {
   } catch (e) { res.send('Error: ' + e.message); }
 });
 
-// NEW: This is what fixes "Loading profile…"
 app.get('/api/session', (req, res) => {
   if (req.session.epic) {
     res.json({
@@ -61,4 +67,4 @@ app.get('/api/check', async (req, res) => {
   });
 });
 
-app.listen(3000, () => console.log('MYFN backend → http://localhost:3000'));
+app.listen(3000, () => console.log('MYFN backend running'));
