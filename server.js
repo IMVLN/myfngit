@@ -12,7 +12,11 @@ app.use(session({
   secret: 'myfn2025',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: true, sameSite: 'none' }
+  cookie: { 
+    secure: true, 
+    sameSite: 'none', 
+    domain: '.myfn.pro'  // ← allows cookie on subdomains
+  }
 }));
 
 const EPIC_CLIENT_ID = 'xyza7891SllfWwak4iZVChMe5KBubfvf';
