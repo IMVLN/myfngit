@@ -15,7 +15,6 @@ app.use(session({
   cookie: { 
     secure: true, 
     sameSite: 'none', 
-    domain: '.myfn.pro'  // ← allows cookie on subdomains
   }
 }));
 
