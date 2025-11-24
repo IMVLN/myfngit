@@ -26,46 +26,37 @@ app.get('/login', (req, res) => {
 app.get('/auth/epic/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) return res.send('<h1>No code</h1>');
-
   try {
-    // 1. Get token
-    const tokenRes = await axios.post('https://api.epicgames.dev/epic/oauth/v1/token',
-      new URLSearchParams({ 
-        grant_type: 'authorization_code', 
-        code, 
-        redirect_uri: EPIC_REDIRECT 
+    // 1. Exchange code for token
+    const tokenRes = await axios.post(
+      'https://api.epicgames.dev/epic/oauth/v1/token',
+      new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: EPIC_REDIRECT
       }),
-      { 
+      {
         auth: { username: EPIC_CLIENT_ID, password: EPIC_CLIENT_SECRET },
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       }
     );
-
-    console.log('=== EPIC TOKEN RESPONSE ===');
-    console.log(JSON.stringify(tokenRes.data, null, 2));
-
     const accessToken = tokenRes.data.access_token;
     const accountId = tokenRes.data.account_id;
-
-    // 2. Fetch account info
-    const accountRes = await axios.get(
-      `https://api.epicgames.dev/epic/id/v1/accounts?accountId=${accountId}`,
+    // 2. Fetch Epic display name (correct endpoint)
+    const profileRes = await axios.get(
+      `https://account-public-service-prod.ol.epicgames.com/account/api/public/account/${accountId}`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-
-    console.log('=== EPIC ACCOUNT RESPONSE ===');
-    console.log(JSON.stringify(accountRes.data, null, 2));
-
-    const realName = accountRes.data[0]?.displayName || tokenRes.data.displayName || 'Epic Player';
-
+    const displayName = profileRes.data.displayName;
+    // 3. Save to session
     req.session.epic = {
-      ...tokenRes.data,
-      displayName: realName
+      accountId,
+      accessToken,
+      displayName
     };
-
-    res.send(`<script>window.location.href="https://myfn.pro/profile"</script>`);
-  } catch (e) {
-    console.error('Epic login failed:', e.response?.data || e.message);
+    res.redirect('https://myfn.pro/profile');
+  } catch (err) {
+    console.error('Epic login failed:', err.response?.data || err.message);
     res.send('<h1>Login failed</h1>');
   }
 });
