@@ -36,23 +36,28 @@ app.get('/auth/epic/callback', async (req, res) => {
   console.log('Callback hit with code:', code ? 'present' : 'missing');
 
   if (!code) {
+    console.log('ERROR: No code — sending error page');
     return res.status(400).send('<h1>No code received</h1><a href="https://myfn.pro">Go back</a>');
   }
 
   try {
+    console.log('Starting token exchange...');
     const tokenRes = await axios.post('https://api.epicgames.dev/epic/oauth/v1/token',
       new URLSearchParams({ 
         grant_type: 'authorization_code', 
         code, 
         redirect_uri: EPIC_REDIRECT 
       }),
-      { auth: { username: EPIC_CLIENT_ID, password: EPIC_CLIENT_SECRET } }
+      { 
+        auth: { username: EPIC_CLIENT_ID, password: EPIC_CLIENT_SECRET },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }  // ← THIS IS THE FIX
+      }
     );
 
+    console.log('Token exchange SUCCESS');
     req.session.epic = tokenRes.data;
-    console.log('Login success — redirecting to profile');
 
-    // THIS IS THE BULLETPROOF REDIRECT
+    // BULLETPROOF REDIRECT TO PROFILE
     res.status(200).send(`
       <!DOCTYPE html>
       <html>
@@ -69,8 +74,8 @@ app.get('/auth/epic/callback', async (req, res) => {
     `);
 
   } catch (e) {
-    console.log('Login failed:', e.response?.data || e.message);
-    res.send(`<h1>Login Failed</h1><p>${e.message}</p><a href="https://myfn.pro">Try again</a>`);
+    console.log('TOKEN EXCHANGE FAILED:', e.response?.data || e.message);
+    res.send(`<h1>Login Error</h1><p>${e.response?.data?.error_description || e.message}</p><a href="https://myfn.pro">Try again</a>`);
   }
 });
 
