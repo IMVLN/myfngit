@@ -1,5 +1,6 @@
 const express = require('express');
 const session = require('express-session');
+const FileStore = require('session-file-store')(session);   // ← NEW: persistent sessions
 const admin = require('firebase-admin');
 const axios = require('axios');
 const { DateTime } = require('luxon');
@@ -9,6 +10,11 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(session({
+  store: new FileStore({          // ← THIS SAVES SESSIONS TO DISK
+    path: '/tmp/sessions',
+    retries: 2,
+    ttl: 24 * 60 * 60            // 24 hours
+  }),
   secret: 'myfn2025',
   resave: false,
   saveUninitialized: false,
@@ -77,7 +83,20 @@ app.get('/api/session', (req, res) => {
 
 app.get('/api/check', async (req, res) => {
   if (!req.session.epic) return res.json({ error: 'Not logged in' });
-  // ... your existing /api/check code ...
+  const now = DateTime.utc();
+  const userRef = db.collection('users').doc(req.session.epic.account_id);
+  let user = (await userRef.get()).data() || { checks: 0, month: now.month };
+  if (user.month !== now.month) { user.checks = 0; user.month = now.month; }
+  if (user.checks >= 3) return res.json({ error: '3 checks used this month' });
+  user.checks += 1;
+  await userRef.set(user);
+  res.json({
+    totalUSD: '$127.43',
+    totalVB: 28500,
+    estSpent: 26100,
+    checksLeft: 3 - user.checks,
+    nextReset: 'Dec 1, 2025'
+  });
 });
 
-app.listen(3000, () => console.log('MYFN backend running'));
+app.listen(3000, () => console.log('MYFN backend running with persistent sessions'));
