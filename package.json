@@ -15,6 +15,7 @@
     "express": "^5.1.0",
     "express-session": "^1.18.2",
     "firebase-admin": "^13.6.0",
+    "firestore-store": "^2.0.2",
     "luxon": "^3.7.2"
   }
 }
