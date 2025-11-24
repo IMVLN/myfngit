@@ -66,11 +66,12 @@ app.get('/api/session', (req, res) => {
     res.json({
       loggedIn: true,
       displayName: req.session.epic.displayName,
-      accountId: req.session.epic.account_id
+      accountId: req.session.epic.accountId   // <-- FIXED
     });
   } else {
     res.json({ loggedIn: false });
   }
 });
+
 
 app.listen(3000, () => console.log('MYFN backend ready — real names 100% guaranteed'));
