@@ -1,22 +1,20 @@
 const express = require('express');
 const session = require('express-session');
-const FirestoreStore = require('firestore-store')(session);
 const admin = require('firebase-admin');
 const axios = require('axios');
 const { DateTime } = require('luxon');
 
-const app = express();
-
-// Initialize Firebase Admin
+// Initialize Firebase
 admin.initializeApp();
 const db = admin.firestore();
 
-// FIRESTORE SESSION STORE — survives everything
+const app = express();
+
+// Trust proxy (Vercel → Render)
+app.set('trust proxy', 1);
+
+// FIRESTORE SESSION STORE — survives everything, no extra package needed
 app.use(session({
-  store: new FirestoreStore({
-    database: db,
-    collection: 'sessions'
-  }),
   secret: 'myfn2025',
   resave: false,
   saveUninitialized: false,
@@ -24,7 +22,13 @@ app.use(session({
     secure: true,
     httpOnly: true,
     sameSite: 'none',
-    maxAge: 7 * 24 * 60 * 60 * 1000  // 7 days
+    maxAge: 7 * 24 * 60 * 60 * 1000   // 7 days
+  },
+  // Custom Firestore store without external dependency
+  store: {
+    get: (sid, callback) => db.collection('sessions').doc(sid).get().then(doc => callback(null, doc.exists ? doc.data() : null)).catch(callback),
+    set: (sid, sess, callback) => db.collection('sessions').doc(sid).set(sess).then(() => callback(null)).catch(callback),
+    destroy: (sid, callback) => db.collection('sessions').doc(sid).delete().then(() => callback(null)).catch(callback)
   }
 }));
 
@@ -32,11 +36,14 @@ const EPIC_CLIENT_ID = 'xyza7891SllfWwak4iZVChMe5KBubfvf';
 const EPIC_CLIENT_SECRET = 'rv29Tq7UzyI2vP4gofBoevkIDkPxj6D10bLdfL79hOM';
 const EPIC_REDIRECT = 'https://myfn.pro/auth/epic/callback';
 
-// ... keep all your routes exactly the same ...
+// Routes
+app.get('/login', (req, res) => {
+  res.redirect(`https://www.epicgames.com/id/authorize?client_id=${EPIC_CLIENT_ID}&redirect_uri=${encodeURIComponent(EPIC_REDIRECT)}&response_type=code&scope=basic_profile account openid`);
+});
 
 app.get('/auth/epic/callback', async (req, res) => {
   const code = req.query.code;
-  if (!code) return res.status(400).send('No code');
+  if (!code) return res.status(400).send('<h1>No code</h1>');
 
   try {
     const tokenRes = await axios.post('https://api.epicgames.dev/epic/oauth/v1/token',
@@ -46,9 +53,9 @@ app.get('/auth/epic/callback', async (req, res) => {
 
     req.session.epic = tokenRes.data;
 
-    res.send(`<script>location.href="https://myfn.pro/profile"</script>`);
+    res.send(`<script>location.href="https://myfn.pro/profile"</script><h2>Success! Redirecting...</h2>`);
   } catch (e) {
-    res.send('Login failed');
+    res.send('<h1>Login failed</h1>');
   }
 });
 
@@ -64,6 +71,6 @@ app.get('/api/session', (req, res) => {
   }
 });
 
-// ... rest of your code (login, /api/check, etc.) ...
+// your /api/check route stays exactly the same
 
-app.listen(3000, () => console.log('MYFN backend with Firestore sessions'));
+app.listen(3000, () => console.log('MYFN LIVE — sessions in Firestore'));
