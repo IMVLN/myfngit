@@ -41,33 +41,32 @@ app.get('/auth/epic/callback', async (req, res) => {
       }
     );
 
+    console.log('=== EPIC TOKEN RESPONSE ===');
+    console.log(JSON.stringify(tokenRes.data, null, 2));
+
     const accessToken = tokenRes.data.access_token;
     const accountId = tokenRes.data.account_id;
 
-    // 2. Fetch real display name from Epic
+    // 2. Fetch account info
     const accountRes = await axios.get(
       `https://api.epicgames.dev/epic/id/v1/accounts?accountId=${accountId}`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
-    const realName = accountRes.data[0]?.displayName || 'Epic Player';
+    console.log('=== EPIC ACCOUNT RESPONSE ===');
+    console.log(JSON.stringify(accountRes.data, null, 2));
 
-    // 3. Save full data + guaranteed real name
+    const realName = accountRes.data[0]?.displayName || tokenRes.data.displayName || 'Epic Player';
+
     req.session.epic = {
       ...tokenRes.data,
       displayName: realName
     };
 
-    res.send(`
-      <script>window.location.href = "https://myfn.pro/profile"</script>
-      <h2 style="text-align:center;color:white;background:#0f0f1a;padding:50px;">
-        Success! Loading your profile...
-      </h2>
-    `);
-
+    res.send(`<script>window.location.href="https://myfn.pro/profile"</script>`);
   } catch (e) {
-    console.error('Epic login error:', e.response?.data || e.message);
-    res.send('<h1>Login failed</h1><p>Try again later.</p>');
+    console.error('Epic login failed:', e.response?.data || e.message);
+    res.send('<h1>Login failed</h1>');
   }
 });
 
