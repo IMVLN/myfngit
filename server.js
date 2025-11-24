@@ -36,8 +36,7 @@ app.get('/auth/epic/callback', async (req, res) => {
   console.log('Callback hit with code:', code ? 'present' : 'missing');
 
   if (!code) {
-    console.log('Error: No authorization code received');
-    return res.send('<h1>Error: No code from Epic. <a href="https://myfn.pro">Go back</a></h1>');
+    return res.status(400).send('<h1>No code received</h1><a href="https://myfn.pro">Go back</a>');
   }
 
   try {
@@ -50,15 +49,28 @@ app.get('/auth/epic/callback', async (req, res) => {
       { auth: { username: EPIC_CLIENT_ID, password: EPIC_CLIENT_SECRET } }
     );
 
-    console.log('Token exchange SUCCESS');
     req.session.epic = tokenRes.data;
+    console.log('Login success — redirecting to profile');
 
-    // THIS LINE SENDS USER STRAIGHT TO THEIR PROFILE AFTER LOGIN
-    res.redirect('https://myfn.pro/profile');
+    // THIS IS THE BULLETPROOF REDIRECT
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Logging you in...</title>
+          <script>
+            window.location.href = "https://myfn.pro/profile";
+          </script>
+        </head>
+        <body style="background:#0f0f1a;color:white;text-align:center;padding:50px;">
+          <h2>Success! Taking you to your profile...</h2>
+        </body>
+      </html>
+    `);
 
   } catch (e) {
-    console.log('Token exchange FAILED:', e.response?.data || e.message);
-    res.send(`<h1>Login Error</h1><p>${e.response?.data?.error || e.message}</p><a href="https://myfn.pro">Try again</a>`);
+    console.log('Login failed:', e.response?.data || e.message);
+    res.send(`<h1>Login Failed</h1><p>${e.message}</p><a href="https://myfn.pro">Try again</a>`);
   }
 });
 
