@@ -6,15 +6,19 @@ const { DateTime } = require('luxon');
 
 const app = express();
 
-// Fix for Vercel/Render proxy + cross-origin cookies
+// CRITICAL: Tell express-session we are behind a proxy (Vercel → Render)
 app.set('trust proxy', 1);
+
 app.use(session({
   secret: 'myfn2025',
   resave: false,
   saveUninitialized: false,
-  cookie: { 
-    secure: true, 
-    sameSite: 'none', 
+  proxy: true,                                      // ← THIS WAS MISSING
+  cookie: {
+    secure: true,           // Required for sameSite: 'none'
+    httpOnly: true,
+    sameSite: 'none',       // Allows cross-site cookie from myfn.pro → Render
+    maxAge: 24 * 60 * 60 * 1000   // 24 hours
   }
 }));
 
@@ -35,12 +39,10 @@ app.get('/auth/epic/callback', async (req, res) => {
   console.log('Callback hit with code:', code ? 'present' : 'missing');
 
   if (!code) {
-    console.log('ERROR: No code — sending error page');
     return res.status(400).send('<h1>No code received</h1><a href="https://myfn.pro">Go back</a>');
   }
 
   try {
-    console.log('Starting token exchange...');
     const tokenRes = await axios.post('https://api.epicgames.dev/epic/oauth/v1/token',
       new URLSearchParams({ 
         grant_type: 'authorization_code', 
@@ -49,22 +51,19 @@ app.get('/auth/epic/callback', async (req, res) => {
       }),
       { 
         auth: { username: EPIC_CLIENT_ID, password: EPIC_CLIENT_SECRET },
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }  // ← THIS IS THE FIX
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       }
     );
 
     console.log('Token exchange SUCCESS');
     req.session.epic = tokenRes.data;
 
-    // BULLETPROOF REDIRECT TO PROFILE
     res.status(200).send(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>Logging you in...</title>
-          <script>
-            window.location.href = "https://myfn.pro/profile";
-          </script>
+          <script>window.location.href = "https://myfn.pro/profile";</script>
         </head>
         <body style="background:#0f0f1a;color:white;text-align:center;padding:50px;">
           <h2>Success! Taking you to your profile...</h2>
